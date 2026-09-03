@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SnapMaster</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+  :root {
+    --bg: #0a0a0e;
+    --surface: #13131a;
+    --surface2: #1a1a24;
+    --border: #1e1e2e;
+    --accent: #6366f1;
+    --accent2: #f472b6;
+    --text: #e2e2f0;
+    --muted: #52526a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .titlebar {
+    -webkit-app-region: drag;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .close-btn { -webkit-app-region: no-drag; background: none; border: 1px solid var(--border); color: var(--muted); font-size: 10px; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-family: 'DM Mono', monospace; }
+  .close-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+  /* STEP INDICATOR */
+  .steps {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .step-tab {
+    flex: 1;
+    padding: 7px 0;
+    font-size: 9px;
+    text-align: center;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-right: 1px solid var(--border);
+    transition: all 0.12s;
+  }
+  .step-tab:last-child { border-right: none; }
+  .step-tab.active { color: var(--text); background: var(--surface2); }
+  .step-tab.done { color: var(--accent); }
+
+  /* CONTENT */
+  .content { flex: 1; overflow: hidden; position: relative; }
+  .panel { position: absolute; inset: 0; display: none; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto; }
+  .panel.active { display: flex; }
+
+  .panel-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text); }
+  .panel-sub { font-size: 10px; color: var(--muted); margin-top: -6px; }
+
+  /* MONITOR CARDS */
+  .monitor-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .monitor-card { flex: 1; min-width: 100px; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 10px; cursor: pointer; transition: all 0.12s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .monitor-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .monitor-card.selected { border-color: var(--accent); background: var(--surface2); }
+  .monitor-icon { font-size: 18px; opacity: 0.7; }
+  .monitor-name { font-size: 10px; color: var(--text); text-align: center; }
+  .monitor-res { font-size: 9px; color: var(--muted); }
+  .primary-badge { font-size: 8px; background: var(--accent); color: #fff; padding: 1px 5px; border-radius: 3px; }
+
+  /* LAYOUT CARDS */
+  .layout-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .layout-card { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 8px; cursor: pointer; transition: all 0.12s; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .layout-card:hover { border-color: var(--accent2); background: var(--surface2); }
+  .layout-card.selected { border-color: var(--accent2); background: var(--surface2); }
+  .layout-preview { width: 100%; height: 44px; position: relative; background: #0d0d18; border-radius: 3px; overflow: hidden; }
+  .preview-zone { position: absolute; border: 1.5px solid; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; font-family: 'Syne', sans-serif; cursor: pointer; transition: all 0.12s; }
+  .preview-zone:hover { filter: brightness(1.5); }
+  .preview-zone.highlight { filter: brightness(1.8); outline: 2px solid #fff; }
+  .layout-name { font-size: 10px; color: var(--text); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+  .empty-msg { text-align: center; color: var(--muted); font-size: 11px; padding: 20px; grid-column: 1/-1; line-height: 1.8; }
+
+  /* ZONE + WINDOW PICKER */
+  .zone-window-wrap { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .zone-mockup { position: relative; background: #0d0d14; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; flex-shrink: 0; height: 140px; }
+  .snap-zone { position: absolute; border: 2px solid; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.12s; }
+  .snap-zone:hover { filter: brightness(1.4); transform: scale(0.97); }
+  .snap-zone.filled { opacity: 0.5; cursor: default; }
+  .snap-zone.filled:hover { filter: none; transform: none; }
+  .snap-zone.active-pick { outline: 3px solid #fff; filter: brightness(1.6); }
+
+  /* WINDOW LIST */
+  .window-list-wrap { display: none; flex-direction: column; gap: 6px; }
+  .window-list-wrap.visible { display: flex; }
+  .wl-title { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .window-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; max-height: 160px; overflow-y: auto; }
+  .window-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 7px; }
+  .window-item:hover { border-color: var(--accent); background: var(--surface2); }
+  .window-icon { font-size: 14px; flex-shrink: 0; }
+  .window-name { font-size: 10px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cancel-pick { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 10px; border-radius: 5px; cursor: pointer; align-self: flex-start; }
+  .cancel-pick:hover { border-color: #ef4444; color: #ef4444; }
+
+  .zone-assignment { display: flex; flex-wrap: wrap; gap: 4px; }
+  .assignment-tag { font-size: 9px; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; color: var(--muted); }
+
+  .footer { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .back-btn { background: none; border: none; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; cursor: pointer; }
+  .back-btn:hover { color: var(--text); }
+  .apply-btn { background: var(--accent); border: none; color: #fff; font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 16px; border-radius: 5px; cursor: pointer; }
+  .apply-btn:hover { background: #4f52d8; }
+  .apply-btn:disabled { opacity: 0.4; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <div class="logo">SNAPMASTER</div>
+  <button class="close-btn" id="closeBtn">✕ ESC</button>
+</div>
+
+<div class="steps">
+  <div class="step-tab active" id="tab1">1 · Monitor</div>
+  <div class="step-tab" id="tab2">2 · Layout</div>
+  <div class="step-tab" id="tab3">3 · Snap</div>
+</div>
+
+<div class="content">
+  <!-- STEP 1: MONITOR -->
+  <div class="panel active" id="panel1">
+    <div class="panel-title">Which monitor?</div>
+    <div class="monitor-grid" id="monitorGrid"></div>
+  </div>
+
+  <!-- STEP 2: LAYOUT -->
+  <div class="panel" id="panel2">
+    <div class="panel-title">Choose a layout</div>
+    <div class="layout-grid" id="layoutGrid"></div>
+  </div>
+
+  <!-- STEP 3: SNAP -->
+  <div class="panel" id="panel3">
+    <div class="panel-title">Snap windows to zones</div>
+    <div class="panel-sub">Click a zone, then pick a window</div>
+    <div class="zone-window-wrap">
+      <div class="zone-mockup" id="zoneMockup"></div>
+      <div class="zone-assignment" id="assignmentTags"></div>
+      <div class="window-list-wrap" id="windowListWrap">
+        <div class="wl-title">Pick a window for this zone</div>
+        <div class="window-list" id="windowList"></div>
+        <button class="cancel-pick" id="cancelPick">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <button class="back-btn" id="backBtn">← back</button>
+  <button class="apply-btn" id="applyBtn" disabled>Apply All</button>
+</div>
+
+<script>
+const COLORS = [
+  { bg:'rgba(99,102,241,0.2)',  b:'#6366f1', t:'#818cf8' },
+  { bg:'rgba(244,114,182,0.2)', b:'#f472b6', t:'#f472b6' },
+  { bg:'rgba(52,211,153,0.2)',  b:'#34d399', t:'#34d399' },
+  { bg:'rgba(251,191,36,0.2)',  b:'#fbbf24', t:'#fbbf24' },
+  { bg:'rgba(96,165,250,0.2)',  b:'#60a5fa', t:'#60a5fa' },
+  { bg:'rgba(248,113,113,0.2)', b:'#f87171', t:'#f87171' },
+  { bg:'rgba(167,139,250,0.2)', b:'#a78bfa', t:'#a78bfa' },
+  { bg:'rgba(45,212,191,0.2)',  b:'#2dd4bf', t:'#2dd4bf' },
+];
+
+let step = 1;
+let displays = [], presets = [], windows = [];
+let selectedDisplay = 0, selectedPreset = null;
+let activeZoneIdx = -1;
+// assignments: { zoneIdx -> { hwnd, title } }
+let assignments = {};
+
+document.getElementById('closeBtn').addEventListener('click', () => window.api.closeAssist());
+document.getElementById('cancelPick').addEventListener('click', () => {
+  activeZoneIdx = -1;
+  document.getElementById('windowListWrap').classList.remove('visible');
+  renderZoneMockup();
+});
+document.getElementById('backBtn').addEventListener('click', () => goStep(step - 1));
+document.getElementById('applyBtn').addEventListener('click', applyAll);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') window.api.closeAssist(); });
+
+async function init() {
+  try { displays = await window.api.getDisplays(); } catch(e) { displays = [{ index:0, size:{width:1920,height:1080}, workArea:{x:0,y:0,width:1920,height:1080}, isPrimary:true }]; }
+  try { presets = await window.api.loadPresets(); } catch(e) { presets = []; }
+  try { windows = await window.api.getWindows(); } catch(e) { windows = []; }
+  renderMonitors();
+}
+
+function goStep(n) {
+  if (n < 1) return;
+  step = n;
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i === n-1));
+  document.querySelectorAll('.step-tab').forEach((t,i) => {
+    t.classList.toggle('active', i === n-1);
+    t.classList.toggle('done', i < n-1);
+  });
+  document.getElementById('backBtn').style.visibility = n > 1 ? 'visible' : 'hidden';
+  document.getElementById('applyBtn').disabled = n !== 3 || Object.keys(assignments).length === 0;
+  if (n === 2) renderLayouts();
+  if (n === 3) { assignments = {}; activeZoneIdx = -1; renderZoneMockup(); loadWindows(); }
+}
+
+// STEP 1
+function renderMonitors() {
+  const grid = document.getElementById('monitorGrid');
+  grid.innerHTML = '';
+  displays.forEach((d, i) => {
+    const card = document.createElement('div');
+    card.className = 'monitor-card';
+    card.innerHTML = `<div class="monitor-icon">🖥</div><div class="monitor-name">Display ${i+1}</div><div class="monitor-res">${d.size.width}×${d.size.height}</div>${d.isPrimary ? '<span class="primary-badge">PRIMARY</span>' : ''}`;
+    card.addEventListener('click', () => { selectedDisplay = i; goStep(2); });
+    grid.appendChild(card);
+  });
+}
+
+// STEP 2
+function renderLayouts() {
+  const grid = document.getElementById('layoutGrid');
+  grid.innerHTML = '';
+  if (!presets.length) {
+    grid.innerHTML = `<div class="empty-msg">No layouts saved.<br>Open the editor to create one.</div>`;
+    return;
+  }
+  presets.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.className = 'layout-card';
+    const preview = p.zones.map((z, zi) => {
+      const c = COLORS[zi % COLORS.length];
+      return `<div class="preview-zone" style="left:${z.x*100}%;top:${z.y*100}%;width:${z.w*100}%;height:${z.h*100}%;background:${c.bg};border-color:${c.b};color:${c.t};">${zi+1}</div>`;
+    }).join('');
+    card.innerHTML = `<div class="layout-preview">${preview}</div><div class="layout-name">${p.name || 'Layout '+(i+1)}</div>`;
+    card.addEventListener('click', () => { selectedPreset = p; goStep(3); });
+    grid.appendChild(card);
+  });
+}
+
+// STEP 3
+function renderZoneMockup() {
+  const mockup = document.getElementById('zoneMockup');
+  mockup.innerHTML = '';
+  if (!selectedPreset) return;
+  selectedPreset.zones.forEach((z, i) => {
+    const c = COLORS[i % COLORS.length];
+    const el = document.createElement('div');
+    el.className = 'snap-zone' + (assignments[i] ? ' filled' : '') + (activeZoneIdx === i ? ' active-pick' : '');
+    el.style.cssText = `left:${z.x*100}%;top:${z.y*100}%;width:${z.w*100}%;height:${z.h*100}%;background:${c.bg};border-color:${c.b};color:${c.t};`;
+    if (assignments[i]) {
+      el.innerHTML = `<span style="font-size:9px;padding:2px 4px;text-align:center;overflow:hidden;">${assignments[i].title.substring(0,12)}</span>`;
+    } else {
+      el.textContent = i + 1;
+    }
+    el.addEventListener('click', () => {
+      if (assignments[i]) return; // already filled
+      activeZoneIdx = i;
+      document.getElementById('windowListWrap').classList.add('visible');
+      renderZoneMockup();
+    });
+    mockup.appendChild(el);
+  });
+
+  // Assignment tags
+  const tags = document.getElementById('assignmentTags');
+  tags.innerHTML = '';
+  Object.entries(assignments).forEach(([zi, w]) => {
+    const tag = document.createElement('div');
+    tag.className = 'assignment-tag';
+    tag.textContent = `Zone ${parseInt(zi)+1}: ${w.title.substring(0,16)}`;
+    tags.appendChild(tag);
+  });
+
+  document.getElementById('applyBtn').disabled = Object.keys(assignments).length === 0;
+}
+
+async function loadWindows() {
+  try { windows = await window.api.getWindows(); } catch(e) {}
+  renderWindowList();
+}
+
+function renderWindowList() {
+  const list = document.getElementById('windowList');
+  list.innerHTML = '';
+  const usedHwnds = new Set(Object.values(assignments).map(a => a.hwnd));
+  const available = windows.filter(w => !usedHwnds.has(w.hwnd));
+  if (!available.length) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:11px;padding:8px;grid-column:1/-1;">No windows available</div>';
+    return;
+  }
+  available.forEach(w => {
+    const item = document.createElement('div');
+    item.className = 'window-item';
+    item.innerHTML = `<span class="window-icon">🪟</span><span class="window-name" title="${w.title}">${w.title}</span>`;
+    item.addEventListener('click', () => {
+      assignments[activeZoneIdx] = w;
+      activeZoneIdx = -1;
+      document.getElementById('windowListWrap').classList.remove('visible');
+      renderZoneMockup();
+      renderWindowList();
+    });
+    list.appendChild(item);
+  });
+}
+
+async function applyAll() {
+  const d = displays[selectedDisplay] || displays[0];
+  for (const [zi, w] of Object.entries(assignments)) {
+    const zone = selectedPreset.zones[parseInt(zi)];
+    await window.api.snapWindowByHwnd(w.hwnd, zone, selectedDisplay);
+  }
+  window.api.closeAssist();
+}
+
+goStep(1);
+init();
+</script>
+</body>
+</html>

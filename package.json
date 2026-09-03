@@ -1,0 +1,63 @@
+{
+  "name": "snapmaster",
+  "version": "1.0.0",
+  "description": "Custom window snapping tool for Windows",
+  "main": "main.js",
+  "author": "alyaanj-ux",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alyaanj-ux/snapmaster.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0",
+    "electron": "^28.0.0"
+  },
+  "build": {
+    "appId": "com.snapmaster.app",
+    "productName": "SnapMaster",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "editor.html",
+      "assist.html",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "SnapMaster-Setup-${version}.exe",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SnapMaster",
+      "uninstallDisplayName": "SnapMaster ${version}",
+      "runAfterFinish": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

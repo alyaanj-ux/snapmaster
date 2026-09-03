@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SnapMaster</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+  :root {
+    --bg: #0a0a0e;
+    --surface: #13131a;
+    --surface2: #1a1a24;
+    --border: #1e1e2e;
+    --accent: #6366f1;
+    --accent2: #f472b6;
+    --text: #e2e2f0;
+    --muted: #52526a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* HEADER */
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; gap: 10px; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; }
+  .header-center { display: flex; align-items: center; gap: 8px; flex: 1; justify-content: center; }
+  .monitor-select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 10px; border-radius: 6px; cursor: pointer; outline: none; min-width: 200px; max-width: 280px; }
+  .monitor-select:focus { border-color: var(--accent); }
+  .name-input { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 10px; border-radius: 6px; width: 130px; outline: none; }
+  .name-input:focus { border-color: var(--accent); }
+
+  /* BODY */
+  .body { display: flex; flex: 1; overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { width: 170px; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; flex-shrink: 0; }
+  .sidebar-hdr { padding: 9px 12px; font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .add-btn { background: none; border: 1px solid var(--border); color: var(--muted); font-size: 14px; width: 20px; height: 20px; border-radius: 4px; cursor: pointer; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .preset-list { flex: 1; overflow-y: auto; padding: 6px; }
+  .preset-item { padding: 7px 9px; border-radius: 5px; cursor: pointer; font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: space-between; gap: 4px; transition: all 0.12s; border: 1px solid transparent; }
+  .preset-item:hover { background: var(--surface2); color: var(--text); }
+  .preset-item.active { background: var(--surface2); border-color: var(--accent); color: var(--text); }
+  .preset-name-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .preset-del { background: none; border: none; color: var(--muted); font-size: 10px; cursor: pointer; padding: 0 2px; opacity: 0; }
+  .preset-item:hover .preset-del { opacity: 1; }
+  .preset-del:hover { color: #ef4444; }
+  .empty-sidebar { padding: 16px 10px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.6; }
+
+  /* EDITOR MAIN */
+  .editor-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .no-preset { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--muted); font-size: 12px; }
+
+  /* TOOLBAR */
+  .toolbar { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; flex-wrap: wrap; }
+  .tool-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; padding: 4px 9px; border-radius: 4px; cursor: pointer; transition: all 0.12s; }
+  .tool-btn:hover { border-color: var(--accent); color: var(--text); }
+  .tool-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .divider { width: 1px; height: 14px; background: var(--border); margin: 0 2px; }
+  .tlabel { font-size: 10px; color: var(--muted); }
+
+  /* CANVAS */
+  .canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 18px; background: var(--bg); overflow: hidden; }
+  .monitor-frame { background: #141420; border: 2px solid #252535; border-radius: 8px 8px 0 0; padding: 8px; box-shadow: 0 12px 50px rgba(0,0,0,0.7); }
+  .monitor-screen { position: relative; background: #0d0d18; border-radius: 2px; overflow: hidden; cursor: crosshair; }
+  .monitor-stand { width: 55px; height: 12px; background: #141420; border: 2px solid #252535; border-top: none; margin: 0 auto; }
+  .monitor-base { width: 85px; height: 4px; background: #1a1a26; border: 1px solid #252535; border-top: none; border-radius: 0 0 3px 3px; margin: 0 auto; }
+
+  /* ZONES */
+  .zone { position: absolute; border: 2px solid; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; cursor: move; }
+  .z-del { position: absolute; top: 2px; right: 3px; font-size: 9px; opacity: 0; cursor: pointer; color: rgba(255,255,255,0.6); font-family: 'DM Mono', monospace; transition: opacity 0.1s; }
+  .zone:hover .z-del { opacity: 1; }
+  .rh { position: absolute; background: rgba(255,255,255,0.7); border-radius: 2px; opacity: 0; transition: opacity 0.1s; z-index: 10; }
+  .zone:hover .rh { opacity: 1; }
+  .rh-n  { top:-3px;  left:50%; transform:translateX(-50%); width:30px; height:5px; cursor:n-resize; }
+  .rh-s  { bottom:-3px; left:50%; transform:translateX(-50%); width:30px; height:5px; cursor:s-resize; }
+  .rh-e  { right:-3px; top:50%; transform:translateY(-50%); width:5px; height:30px; cursor:e-resize; }
+  .rh-w  { left:-3px;  top:50%; transform:translateY(-50%); width:5px; height:30px; cursor:w-resize; }
+  .rh-nw { top:-3px; left:-3px; width:8px; height:8px; cursor:nw-resize; }
+  .rh-ne { top:-3px; right:-3px; width:8px; height:8px; cursor:ne-resize; }
+  .rh-sw { bottom:-3px; left:-3px; width:8px; height:8px; cursor:sw-resize; }
+  .rh-se { bottom:-3px; right:-3px; width:8px; height:8px; cursor:se-resize; }
+  .ghost { position: absolute; border: 2px dashed var(--accent); background: rgba(99,102,241,0.1); border-radius: 2px; pointer-events: none; display: none; }
+
+  /* FOOTER */
+  .footer { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .zone-count { font-size: 10px; color: var(--muted); }
+  .footer-btns { display: flex; gap: 7px; }
+  .btn { font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 14px; border-radius: 5px; cursor: pointer; border: 1px solid var(--border); transition: all 0.12s; }
+  .btn-ghost { background: none; color: var(--muted); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #4f52d8; }
+  .btn-danger { background: none; border-color: #ef4444; color: #ef4444; }
+  .btn-danger:hover { background: rgba(239,68,68,0.08); }
+
+
+  .toast { position: fixed; bottom: 48px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 11px; padding: 6px 14px; border-radius: 5px; opacity: 0; transition: all 0.18s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SNAPMASTER</div>
+  <div class="header-center">
+    <select class="monitor-select" id="monitorSelect"></select>
+    <input class="name-input" id="presetName" placeholder="Layout name..." maxlength="20">
+  </div>
+</div>
+
+<div class="body">
+  <div class="sidebar">
+    <div class="sidebar-hdr">
+      <span>Layouts</span>
+      <button class="add-btn" id="addBtn" title="New layout">+</button>
+    </div>
+    <div class="preset-list" id="presetList"></div>
+  </div>
+
+  <div class="editor-main">
+    <div class="no-preset" id="noPreset">
+      <span>No layout selected</span>
+      <button class="btn btn-primary" id="addBtn2">+ New Layout</button>
+    </div>
+
+    <div id="editorActive" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
+      <div class="toolbar">
+        <span class="tlabel">MODE:</span>
+        <button class="tool-btn active" id="btnDraw">✏ Draw</button>
+        <button class="tool-btn" id="btnGrid">⊞ Split</button>
+        <div class="divider"></div>
+        <span class="tlabel">QUICK:</span>
+        <button class="tool-btn" id="q2">½ ½</button>
+        <button class="tool-btn" id="q3">⅓ ⅓ ⅓</button>
+        <button class="tool-btn" id="q4">2×2</button>
+        <button class="tool-btn" id="qm">Main+Side</button>
+      </div>
+
+      <div class="canvas-wrap">
+        <div>
+          <div class="monitor-frame">
+            <div class="monitor-screen" id="screen">
+              <div class="ghost" id="ghost"></div>
+            </div>
+          </div>
+          <div class="monitor-stand"></div>
+          <div class="monitor-base"></div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span class="zone-count" id="zoneCount">0/8 zones</span>
+        <div class="footer-btns">
+          <button class="btn btn-danger" id="btnClear">Clear</button>
+          
+          <button class="btn btn-primary" id="btnSave">Save Layout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const COLORS = [
+  { bg:'rgba(99,102,241,0.22)',  b:'#6366f1', t:'#818cf8' },
+  { bg:'rgba(244,114,182,0.22)', b:'#f472b6', t:'#f472b6' },
+  { bg:'rgba(52,211,153,0.22)',  b:'#34d399', t:'#34d399' },
+  { bg:'rgba(251,191,36,0.22)',  b:'#fbbf24', t:'#fbbf24' },
+  { bg:'rgba(96,165,250,0.22)',  b:'#60a5fa', t:'#60a5fa' },
+  { bg:'rgba(248,113,113,0.22)', b:'#f87171', t:'#f87171' },
+  { bg:'rgba(167,139,250,0.22)', b:'#a78bfa', t:'#a78bfa' },
+  { bg:'rgba(45,212,191,0.22)',  b:'#2dd4bf', t:'#2dd4bf' },
+];
+
+// Screen canvas size — will be updated based on monitor aspect ratio
+let SW = 520, SH = 220;
+let presets = [], activeIdx = -1, zones = [], mode = 'draw';
+let drawing = false, drawStart = null;
+let displays = [];
+
+const screenEl  = document.getElementById('screen');
+const ghostEl   = document.getElementById('ghost');
+const nameInput = document.getElementById('presetName');
+const monSel    = document.getElementById('monitorSelect');
+
+async function init() {
+  try {
+    displays = await window.api.getDisplays();
+    console.log('Displays:', displays);
+  } catch(e) {
+    console.error('getDisplays failed:', e);
+    // Fallback: use window dimensions as single display
+    displays = [{ index: 0, size: { width: window.screen.width, height: window.screen.height }, workArea: { x:0, y:0, width: window.screen.width, height: window.screen.height }, isPrimary: true }];
+  }
+  try {
+    presets = await window.api.loadPresets();
+  } catch(e) {
+    console.error('loadPresets failed:', e);
+    presets = [];
+  }
+  populateMonitors();
+  renderSidebar();
+}
+
+// --- MONITOR DROPDOWN ---
+function populateMonitors() {
+  monSel.innerHTML = '';
+  displays.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `Display ${i+1} — ${d.size.width}×${d.size.height}${d.isPrimary ? ' (Primary)' : ''}`;
+    monSel.appendChild(opt);
+  });
+  updateCanvasAspect();
+}
+
+function updateCanvasAspect() {
+  const d = displays[parseInt(monSel.value)] || displays[0];
+  if (!d) return;
+  const ratio = d.size.width / d.size.height;
+  // Size canvas to fill the window — header ~44px, toolbar ~38px, footer ~44px, padding 36px
+  const availH = window.innerHeight - 44 - 38 - 44 - 36 - 30; // 30 for stand/base
+  const availW = window.innerWidth - 170 - 36; // sidebar + padding
+  SH = Math.min(availH, Math.round(availW / ratio));
+  SW = Math.round(SH * ratio);
+  if (SW > availW) { SW = availW; SH = Math.round(SW / ratio); }
+  screenEl.style.width  = SW + 'px';
+  screenEl.style.height = SH + 'px';
+  zones = zones.map(z => ({ ...z, px: z.x*SW, py: z.y*SH, pw: z.w*SW, ph: z.h*SH }));
+  renderZones();
+}
+
+monSel.addEventListener('change', updateCanvasAspect);
+
+// --- SIDEBAR ---
+function renderSidebar() {
+  const list = document.getElementById('presetList');
+  list.innerHTML = '';
+  if (!presets.length) {
+    list.innerHTML = '<div class="empty-sidebar">No layouts yet.<br>Click + to start.</div>';
+    return;
+  }
+  presets.forEach((p, i) => {
+    const el = document.createElement('div');
+    el.className = 'preset-item' + (i === activeIdx ? ' active' : '');
+    el.innerHTML = `<span class="preset-name-label">${p.name || 'Layout '+(i+1)}</span><button class="preset-del">✕</button>`;
+    el.querySelector('.preset-del').addEventListener('click', (e) => { e.stopPropagation(); deletePreset(i); });
+    el.addEventListener('click', () => selectPreset(i));
+    list.appendChild(el);
+  });
+}
+
+function addPreset() {
+  if (presets.length >= 6) { showToast('Max 6 layouts'); return; }
+  const displayIndex = parseInt(monSel.value) || 0;
+  presets.push({ name: 'Layout ' + (presets.length + 1), zones: [], displayIndex });
+  activeIdx = presets.length - 1;
+  zones = [];
+  nameInput.value = presets[activeIdx].name;
+  showEditor();
+  renderSidebar();
+  renderZones();
+}
+
+function selectPreset(i) {
+  activeIdx = i;
+  const p = presets[i];
+  zones = p.zones.map(z => ({ ...z, px: z.x*SW, py: z.y*SH, pw: z.w*SW, ph: z.h*SH }));
+  nameInput.value = p.name || '';
+  // Set monitor dropdown to saved display
+  if (p.displayIndex !== undefined) monSel.value = p.displayIndex;
+  updateCanvasAspect();
+  showEditor();
+  renderSidebar();
+}
+
+function deletePreset(i) {
+  presets.splice(i, 1);
+  if (activeIdx >= presets.length) activeIdx = presets.length - 1;
+  if (activeIdx >= 0) selectPreset(activeIdx);
+  else { zones = []; activeIdx = -1; hideEditor(); }
+  window.api.savePresets(presets);
+  renderSidebar();
+}
+
+function showEditor() {
+  document.getElementById('noPreset').style.display = 'none';
+  document.getElementById('editorActive').style.display = 'flex';
+  setTimeout(() => updateCanvasAspect(), 50);
+}
+function hideEditor() {
+  document.getElementById('noPreset').style.display = 'flex';
+  document.getElementById('editorActive').style.display = 'none';
+}
+
+// --- ZONES ---
+function renderZones() {
+  document.querySelectorAll('.zone').forEach(z => z.remove());
+  zones.forEach((z, i) => {
+    const c = COLORS[i % COLORS.length];
+    const el = document.createElement('div');
+    el.className = 'zone';
+    el.style.cssText = `left:${z.px}px;top:${z.py}px;width:${z.pw}px;height:${z.ph}px;background:${c.bg};border-color:${c.b};color:${c.t};`;
+    el.innerHTML = `${i+1}<span class="z-del">✕</span>
+      <span class="rh rh-n"></span>
+      <span class="rh rh-s"></span>
+      <span class="rh rh-e"></span>
+      <span class="rh rh-w"></span>
+      <span class="rh rh-nw"></span>
+      <span class="rh rh-ne"></span>
+      <span class="rh rh-sw"></span>
+      <span class="rh rh-se"></span>`;
+    el.querySelector('.z-del').addEventListener('click', () => { zones.splice(i,1); renderZones(); });
+    // Resize handles
+    el.querySelectorAll('.rh').forEach(h => {
+      h.addEventListener('mousedown', ev => { ev.stopPropagation(); resizeZone(ev, i, h.className.replace('rh rh-','')); });
+    });
+    el.addEventListener('mousedown', ev => {
+      if (ev.target.classList.contains('z-del') || ev.target.classList.contains('rh')) return;
+      dragZone(ev, i);
+    });
+    screenEl.appendChild(el);
+  });
+  document.getElementById('zoneCount').textContent = `${zones.length}/8 zones`;
+}
+
+// --- DRAW ---
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnDraw').classList.toggle('active', m==='draw');
+  document.getElementById('btnGrid').classList.toggle('active', m==='grid');
+  screenEl.style.cursor = m==='draw' ? 'crosshair' : 'default';
+}
+
+function getPos(e) {
+  const r = screenEl.getBoundingClientRect();
+  return { x: Math.max(0,Math.min(SW,e.clientX-r.left)), y: Math.max(0,Math.min(SH,e.clientY-r.top)) };
+}
+
+screenEl.addEventListener('mousedown', e => {
+  if (e.target.classList.contains('zone') || e.target.classList.contains('z-del')) return;
+  if (mode === 'draw') {
+    if (zones.length >= 8) { showToast('Max 8 zones'); return; }
+    drawing = true; drawStart = getPos(e);
+    ghostEl.style.cssText = `display:block;left:${drawStart.x}px;top:${drawStart.y}px;width:0;height:0;`;
+  } else {
+    gridSplit(getPos(e));
+  }
+});
+document.addEventListener('mousemove', e => {
+  if (!drawing) return;
+  const p = getPos(e);
+  const x=Math.min(drawStart.x,p.x), y=Math.min(drawStart.y,p.y);
+  ghostEl.style.cssText = `display:block;left:${x}px;top:${y}px;width:${Math.abs(p.x-drawStart.x)}px;height:${Math.abs(p.y-drawStart.y)}px;`;
+});
+document.addEventListener('mouseup', e => {
+  if (!drawing) return;
+  drawing = false; ghostEl.style.display = 'none';
+  const p = getPos(e);
+  let x=Math.min(drawStart.x,p.x), y=Math.min(drawStart.y,p.y);
+  let w=Math.abs(p.x-drawStart.x), h=Math.abs(p.y-drawStart.y);
+  if (w<15||h<15) return;
+
+  const fx=x/SW, fy=y/SH, fw=w/SW, fh=h/SH;
+  const overlaps = zones.some(z => {
+    const ox = Math.min(fx+fw, z.x+z.w) - Math.max(fx, z.x);
+    const oy = Math.min(fy+fh, z.y+z.h) - Math.max(fy, z.y);
+    return ox > 0.005 && oy > 0.005;
+  });
+  if (!overlaps) {
+    zones.push({ px:x,py:y,pw:w,ph:h, x:fx,y:fy,w:fw,h:fh });
+    renderZones();
+  } else {
+    showToast('Cannot overlap existing zones');
+  }
+});
+
+function gridSplit(p) {
+  const hit = zones.findIndex(z => p.x>=z.px&&p.x<=z.px+z.pw&&p.y>=z.py&&p.y<=z.py+z.ph);
+  if (hit === -1) {
+    if (!zones.length) { zones.push({px:0,py:0,pw:SW,ph:SH,x:0,y:0,w:1,h:1}); gridSplit(p); return; }
+    return;
+  }
+  if (zones.length >= 8) { showToast('Max 8 zones'); return; }
+  const z = zones.splice(hit,1)[0];
+  if (z.pw >= z.ph) {
+    const hw=z.pw/2;
+    zones.push({px:z.px,py:z.py,pw:hw,ph:z.ph,x:z.x,y:z.y,w:z.w/2,h:z.h});
+    zones.push({px:z.px+hw,py:z.py,pw:hw,ph:z.ph,x:z.x+z.w/2,y:z.y,w:z.w/2,h:z.h});
+  } else {
+    const hh=z.ph/2;
+    zones.push({px:z.px,py:z.py,pw:z.pw,ph:hh,x:z.x,y:z.y,w:z.w,h:z.h/2});
+    zones.push({px:z.px,py:z.py+hh,pw:z.pw,ph:hh,x:z.x,y:z.y+z.h/2,w:z.w,h:z.h/2});
+  }
+  renderZones();
+}
+
+function hasOverlap(fx, fy, fw, fh, idx) {
+  return zones.some((o, i) => {
+    if (i === idx) return false;
+    const ox = Math.min(fx+fw, o.x+o.w) - Math.max(fx, o.x);
+    const oy = Math.min(fy+fh, o.y+o.h) - Math.max(fy, o.y);
+    return ox > 0.005 && oy > 0.005;
+  });
+}
+
+// Snap a value to nearby zone edges or screen edges
+const SNAP_DIST = 0.025; // 2.5% of screen
+function snapToEdges(val, size, axis, excludeIdx) {
+  // Collect all edges on this axis
+  const edges = [0, 1];
+  for (let i = 0; i < zones.length; i++) {
+    if (i === excludeIdx) continue;
+    const z = zones[i];
+    if (axis === 'x') { edges.push(z.x, z.x + z.w); }
+    else              { edges.push(z.y, z.y + z.h); }
+  }
+  // Try snapping leading edge
+  for (const e of edges) {
+    if (Math.abs(val - e) < SNAP_DIST) return e;
+  }
+  // Try snapping trailing edge
+  for (const e of edges) {
+    if (Math.abs((val + size) - e) < SNAP_DIST) return e - size;
+  }
+  return val;
+}
+
+function dragZone(e, idx) {
+  e.preventDefault();
+  const z = zones[idx];
+  const sx = e.clientX - z.px, sy = e.clientY - z.py;
+  const mv = e => {
+    let tpx = Math.max(0, Math.min(SW-z.pw, e.clientX-sx));
+    let tpy = Math.max(0, Math.min(SH-z.ph, e.clientY-sy));
+    let tfx = tpx/SW, tfy = tpy/SH;
+
+    // Apply magnetic snap to nearby edges
+    tfx = snapToEdges(tfx, z.w, 'x', idx);
+    tfy = snapToEdges(tfy, z.h, 'y', idx);
+    tpx = tfx*SW; tpy = tfy*SH;
+
+    // Try full move
+    if (!hasOverlap(tfx, tfy, z.w, z.h, idx)) {
+      z.px=tpx; z.py=tpy; z.x=tfx; z.y=tfy;
+    } else {
+      // Slide on free axis
+      const snapX = snapToEdges(tfx, z.w, 'x', idx);
+      const snapY = snapToEdges(tfy, z.h, 'y', idx);
+      if (!hasOverlap(snapX, z.y, z.w, z.h, idx)) { z.px=snapX*SW; z.x=snapX; }
+      if (!hasOverlap(z.x, snapY, z.w, z.h, idx)) { z.py=snapY*SH; z.y=snapY; }
+    }
+    renderZones();
+  };
+  const up = () => { document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+}
+
+function resizeZone(e, idx, handle) {
+  e.preventDefault();
+  const z = zones[idx];
+  const startX = e.clientX, startY = e.clientY;
+  const origPx=z.px, origPy=z.py, origPw=z.pw, origPh=z.ph;
+  const origX=z.x, origY=z.y, origW=z.w, origH=z.h;
+  const MIN = 20; // min px size
+
+  const mv = e => {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    let npx=origPx, npy=origPy, npw=origPw, nph=origPh;
+
+    if (handle.includes('e')) npw = Math.max(MIN, origPw + dx);
+    if (handle.includes('s')) nph = Math.max(MIN, origPh + dy);
+    if (handle.includes('w')) { npx = Math.min(origPx+origPw-MIN, origPx+dx); npw = origPw - (npx-origPx); }
+    if (handle.includes('n')) { npy = Math.min(origPy+origPh-MIN, origPy+dy); nph = origPh - (npy-origPy); }
+
+    // Clamp to screen
+    npx = Math.max(0, npx); npy = Math.max(0, npy);
+    npw = Math.min(SW-npx, npw); nph = Math.min(SH-npy, nph);
+
+    let nfx=npx/SW, nfy=npy/SH, nfw=npw/SW, nfh=nph/SH;
+
+    // Snap trailing/leading edges to nearby zone edges
+    if (handle.includes('e')) { const s=snapToEdges(nfx, nfw, 'x', idx); nfw=s-nfx+nfw; }
+    if (handle.includes('s')) { const s=snapToEdges(nfy, nfh, 'y', idx); nfh=s-nfy+nfh; }
+    if (handle.includes('w')) { const s=snapToEdges(nfx, nfw, 'x', idx); nfw+=nfx-s; nfx=s; }
+    if (handle.includes('n')) { const s=snapToEdges(nfy, nfh, 'y', idx); nfh+=nfy-s; nfy=s; }
+
+    npx=nfx*SW; npy=nfy*SH; npw=nfw*SW; nph=nfh*SH;
+
+    if (!hasOverlap(nfx, nfy, nfw, nfh, idx)) {
+      z.px=npx; z.py=npy; z.pw=npw; z.ph=nph;
+      z.x=nfx; z.y=nfy; z.w=nfw; z.h=nfh;
+      renderZones();
+    }
+  };
+  const up = () => { document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+  document.addEventListener('mousemove', mv);
+  document.addEventListener('mouseup', up);
+}
+
+// --- QUICK LAYOUTS ---
+document.getElementById('q2').addEventListener('click', ()=>{ zones=[{px:0,py:0,pw:SW/2,ph:SH,x:0,y:0,w:0.5,h:1},{px:SW/2,py:0,pw:SW/2,ph:SH,x:0.5,y:0,w:0.5,h:1}]; renderZones(); });
+document.getElementById('q3').addEventListener('click', ()=>{ zones=[0,1,2].map(i=>({px:i*SW/3,py:0,pw:SW/3,ph:SH,x:i/3,y:0,w:1/3,h:1})); renderZones(); });
+document.getElementById('q4').addEventListener('click', ()=>{ zones=[{px:0,py:0,pw:SW/2,ph:SH/2,x:0,y:0,w:.5,h:.5},{px:SW/2,py:0,pw:SW/2,ph:SH/2,x:.5,y:0,w:.5,h:.5},{px:0,py:SH/2,pw:SW/2,ph:SH/2,x:0,y:.5,w:.5,h:.5},{px:SW/2,py:SH/2,pw:SW/2,ph:SH/2,x:.5,y:.5,w:.5,h:.5}]; renderZones(); });
+document.getElementById('qm').addEventListener('click', ()=>{ zones=[{px:0,py:0,pw:SW*.65,ph:SH,x:0,y:0,w:.65,h:1},{px:SW*.65,py:0,pw:SW*.35,ph:SH,x:.65,y:0,w:.35,h:1}]; renderZones(); });
+document.getElementById('btnDraw').addEventListener('click', ()=>setMode('draw'));
+document.getElementById('btnGrid').addEventListener('click', ()=>setMode('grid'));
+document.getElementById('btnClear').addEventListener('click', ()=>{ zones=[]; renderZones(); });
+document.getElementById('addBtn').addEventListener('click', addPreset);
+document.getElementById('addBtn2').addEventListener('click', addPreset);
+
+// --- NAME ---
+nameInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { nameInput.blur(); }
+});
+nameInput.addEventListener('blur', () => {
+  if (activeIdx < 0) return;
+  const name = nameInput.value.trim() || 'Layout '+(activeIdx+1);
+  nameInput.value = name;
+  presets[activeIdx].name = name;
+  renderSidebar();
+});
+
+// --- SAVE ---
+document.getElementById('btnSave').addEventListener('click', async () => {
+  if (activeIdx < 0) { showToast('No layout selected'); return; }
+  const name = nameInput.value.trim() || 'Layout '+(activeIdx+1);
+  const displayIndex = parseInt(monSel.value) || 0;
+  presets[activeIdx] = {
+    name, displayIndex,
+    zones: zones.map(z=>({x:parseFloat(z.x.toFixed(4)),y:parseFloat(z.y.toFixed(4)),w:parseFloat(z.w.toFixed(4)),h:parseFloat(z.h.toFixed(4))}))
+  };
+  try {
+    if (window.api && window.api.savePresets) {
+      await window.api.savePresets(presets);
+      renderSidebar();
+      showToast('✓ Saved');
+    } else {
+      // Fallback: save to localStorage if IPC unavailable
+      localStorage.setItem('snapmaster_presets', JSON.stringify(presets));
+      renderSidebar();
+      showToast('✓ Saved (local)');
+    }
+  } catch(e) {
+    console.error('Save failed:', e);
+    showToast('Save failed: ' + e.message);
+  }
+});
+
+function showToast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
+}
+
+document.getElementById('editorActive').style.display = 'none';
+window.addEventListener('resize', () => { if (activeIdx >= 0) updateCanvasAspect(); });
+init();
+</script>
+</body>
+</html>
