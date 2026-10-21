@@ -60,5 +60,10 @@
       "installerHeaderIcon": "assets/icon.ico",
       "deleteAppDataOnUninstall": false
     }
+  },
+  "overrides": {
+    "app-builder-lib": {
+      "@electron/get": "^5.1.0"
+    }
   }
 }
