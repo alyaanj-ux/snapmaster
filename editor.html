@@ -105,6 +105,7 @@
     <select class="monitor-select" id="monitorSelect"></select>
     <input class="name-input" id="presetName" placeholder="Layout name..." maxlength="20">
   </div>
+  <button class="tool-btn" id="btnHotkeys" title="Change global hotkeys">⌨ Hotkeys</button>
 </div>
 
 <div class="body">
@@ -209,7 +210,8 @@ function populateMonitors() {
   displays.forEach((d, i) => {
     const opt = document.createElement('option');
     opt.value = i;
-    opt.textContent = `Display ${i+1} — ${d.size.width}×${d.size.height}${d.isPrimary ? ' (Primary)' : ''}`;
+    const scale = d.scaleFactor && d.scaleFactor !== 1 ? ` @ ${Math.round(d.scaleFactor * 100)}%` : '';
+    opt.textContent = `Display ${i+1} — ${d.size.width}×${d.size.height}${scale}${d.isPrimary ? ' (Primary)' : ''}`;
     monSel.appendChild(opt);
   });
   updateCanvasAspect();
@@ -510,6 +512,7 @@ document.getElementById('btnGrid').addEventListener('click', ()=>setMode('grid')
 document.getElementById('btnClear').addEventListener('click', ()=>{ zones=[]; renderZones(); });
 document.getElementById('addBtn').addEventListener('click', addPreset);
 document.getElementById('addBtn2').addEventListener('click', addPreset);
+document.getElementById('btnHotkeys').addEventListener('click', () => window.api.openHotkeys());
 
 // --- NAME ---
 nameInput.addEventListener('keydown', e => {

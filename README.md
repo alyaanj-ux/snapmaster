@@ -28,27 +28,32 @@ Requires Node.js. Electron and electron-builder are dev dependencies.
 
 Snapping targets the monitor the **mouse cursor** is currently on, not always the primary.
 
-| Hotkey              | Zone                 |
-|---------------------|----------------------|
-| Alt + Left          | Left half            |
-| Alt + Right         | Right half           |
-| Alt + Up            | Fullscreen           |
-| Alt + Down          | Center 80%           |
-| Alt + Shift + Left  | Left third           |
-| Alt + Shift + Up    | Middle third         |
-| Alt + Shift + Right | Right third          |
-| Alt + 1             | Top-left quarter     |
-| Alt + 2             | Top-right quarter    |
-| Alt + 3             | Bottom-left quarter  |
-| Alt + 4             | Bottom-right quarter |
-| Alt + 5             | Center 60%           |
-| Alt + 6             | Fullscreen           |
+| Default hotkey          | Zone                 |
+|-------------------------|----------------------|
+| Win + Alt + Shift + ←   | Left half            |
+| Win + Alt + Shift + →   | Right half           |
+| Win + Alt + Shift + ↑   | Fullscreen           |
+| Win + Alt + Shift + ↓   | Center 80%           |
+| Ctrl + Win + Alt + ←    | Left third           |
+| Ctrl + Win + Alt + ↑    | Middle third         |
+| Ctrl + Win + Alt + →    | Right third          |
+| Win + Alt + Shift + 1   | Top-left quarter     |
+| Win + Alt + Shift + 2   | Top-right quarter    |
+| Win + Alt + Shift + 3   | Bottom-left quarter  |
+| Win + Alt + Shift + 4   | Bottom-right quarter |
+| Win + Alt + Shift + 5   | Center 60%           |
 
-These are registered globally, which means **Alt+Left and Alt+Right are taken system-wide**
-and will no longer reach apps that use them for back/forward. To change them, edit the
-`HOTKEYS` map at the top of `main.js` — switching the whole set to `Ctrl+Alt+...` is a
-find-and-replace. Any combination already claimed by another app is skipped, and the app
-logs which ones on startup rather than failing.
+Every hotkey can be changed or turned off: editor → **⌨ Hotkeys**, or tray → **Hotkeys →
+Change Hotkeys…**. Click a shortcut and press the new combination; it must include Ctrl, Alt
+or Win. Changes apply immediately and persist to `settings.json` under the app's userData
+directory.
+
+The defaults are deliberately awkward to type by accident. Hotkeys are registered globally
+and win over every other app, so anything shorter collides with something: Alt+←/→ is
+Back/Forward in every browser, Ctrl+Alt+arrows belong to VS Code, and Windows 11 itself
+reserves Win+Alt+arrows. If Windows or another app already owns a combination, SnapMaster
+says so: a tray notification on startup, and a red "already used" note next to it in the
+Hotkeys window.
 
 ## Zone editor
 
@@ -77,6 +82,11 @@ surfaces are excluded.
   naively moving a window to a zone leaves a visible gap on each side. SnapMaster reads the
   true visible bounds with `DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS)` and offsets
   the target rect by the difference. Snaps land pixel-exact on the zone.
+- **Display scaling.** Electron reports monitors in scaled units; Win32 moves windows in
+  physical pixels. Zones are converted to physical pixels with `screen.dipToScreenRect`,
+  and the snapping process opts into per-monitor DPI awareness so every measurement it
+  takes is in physical pixels too. Without that, the shadow-border correction would mix
+  scaled and physical coordinates on any display not at 100%.
 - **Maximized windows** are restored and un-maximized before snapping, otherwise the move
   is ignored.
 - **Single instance.** A second launch surfaces the running copy instead of starting a rival
@@ -91,4 +101,7 @@ surfaces are excluded.
 - **Multi-monitor is implemented but has only been exercised on a single-display machine.**
   Zone math accounts for each display's work-area offset, and both UIs let you pick a
   target display, but the multi-display path has not been verified against real hardware.
+- **Display scaling above 100% has not been tested on real hardware.** The coordinate
+  handling is described under Implementation notes; snapping is verified pixel-exact at
+  100% only.
 - **Per-app rules** (auto-snap an app to a zone on launch) are not implemented.

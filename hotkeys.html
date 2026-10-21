@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SnapMaster Hotkeys</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+  :root {
+    --bg: #0a0a0e;
+    --surface: #13131a;
+    --surface2: #1a1a24;
+    --border: #1e1e2e;
+    --accent: #6366f1;
+    --accent2: #f472b6;
+    --text: #e2e2f0;
+    --muted: #52526a;
+    --ok: #34d399;
+    --bad: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .sub { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .intro { padding: 12px 16px; font-size: 11px; color: var(--muted); line-height: 1.6; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+  .list { flex: 1; overflow-y: auto; padding: 6px 10px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: none; }
+  .row-label { flex: 1; min-width: 0; }
+  .row-name { font-size: 12px; }
+  .row-status { font-size: 10px; margin-top: 3px; color: var(--muted); }
+  .row-status.ok { color: var(--ok); }
+  .row-status.bad { color: var(--bad); }
+
+  .key { min-width: 190px; text-align: center; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 10px; border-radius: 5px; cursor: pointer; transition: all 0.12s; }
+  .key:hover { border-color: var(--accent); }
+  .key.unset { color: var(--muted); }
+  .key.bad { border-color: var(--bad); }
+  .key.recording { border-color: var(--accent); background: rgba(99,102,241,0.15); color: var(--text); }
+  .clear { background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; padding: 4px; width: 22px; }
+  .clear:hover { color: var(--bad); }
+  .clear:disabled { visibility: hidden; }
+
+  .footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 16px; border-top: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+  .hint { font-size: 10px; color: var(--muted); flex: 1; min-width: 0; }
+  .hint.bad { color: var(--bad); }
+  .btn { font-family: 'DM Mono', monospace; font-size: 11px; padding: 5px 14px; border-radius: 5px; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--muted); transition: all 0.12s; white-space: nowrap; }
+  .btn:hover { color: var(--text); border-color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">SNAPMASTER</div>
+  <div class="sub">Hotkeys</div>
+</div>
+
+<div class="intro">
+  Click a shortcut, then press the new key combination. Shortcuts must include Ctrl, Alt or Win.
+  Press Esc to cancel, or ✕ to turn a hotkey off. Hotkeys work in every app, so pick
+  combinations your other programs don't use.
+</div>
+
+<div class="list" id="list"></div>
+
+<div class="footer">
+  <span class="hint" id="hint"></span>
+  <button class="btn" id="resetBtn">Reset to defaults</button>
+</div>
+
+<script>
+let hotkeys = [];
+let recordingId = null;
+let liveMods = '';
+
+const listEl = document.getElementById('list');
+const hintEl = document.getElementById('hint');
+
+const NAMED_KEYS = {
+  ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
+  Space: 'Space', Enter: 'Enter', Tab: 'Tab', Backspace: 'Backspace',
+  Home: 'Home', End: 'End', PageUp: 'PageUp', PageDown: 'PageDown', Insert: 'Insert', Delete: 'Delete',
+  Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Backslash: '\\',
+  Semicolon: ';', Quote: "'", Comma: ',', Period: '.', Slash: '/',
+  NumpadAdd: 'numadd', NumpadSubtract: 'numsub', NumpadMultiply: 'nummult', NumpadDivide: 'numdiv', NumpadDecimal: 'numdec',
+};
+const MODIFIER_KEYS = ['Control', 'Alt', 'Shift', 'Meta', 'OS', 'AltGraph'];
+
+// e.code names the physical key, so the result doesn't change with keyboard
+// layout or with Shift turning "1" into "!".
+function keyFromCode(code) {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5);
+  if (/^Numpad[0-9]$/.test(code)) return 'num' + code.slice(6);
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) return code;
+  return NAMED_KEYS[code] || null;
+}
+
+// On-screen keyboards, remote desktop and some KVMs send keys without a scan
+// code, which leaves e.code empty. Fall back to the virtual-key code.
+const VK_NAMES = {
+  37: 'Left', 38: 'Up', 39: 'Right', 40: 'Down', 32: 'Space', 13: 'Enter', 9: 'Tab', 8: 'Backspace',
+  36: 'Home', 35: 'End', 33: 'PageUp', 34: 'PageDown', 45: 'Insert', 46: 'Delete',
+  192: '`', 189: '-', 187: '=', 219: '[', 221: ']', 220: '\\', 186: ';', 222: "'", 188: ',', 190: '.', 191: '/',
+  107: 'numadd', 109: 'numsub', 106: 'nummult', 111: 'numdiv', 110: 'numdec',
+};
+function keyFromKeyCode(kc) {
+  if (kc >= 65 && kc <= 90) return String.fromCharCode(kc);
+  if (kc >= 48 && kc <= 57) return String.fromCharCode(kc);
+  if (kc >= 96 && kc <= 105) return 'num' + (kc - 96);
+  if (kc >= 112 && kc <= 135) return 'F' + (kc - 111);
+  return VK_NAMES[kc] || null;
+}
+
+// Modifier order matches the defaults in main.js so duplicate checks compare
+// like with like.
+function modifiersOf(e) {
+  const m = [];
+  if (e.ctrlKey) m.push('Ctrl');
+  if (e.metaKey) m.push('Super');
+  if (e.altKey) m.push('Alt');
+  if (e.shiftKey) m.push('Shift');
+  return m;
+}
+
+function pretty(accel) {
+  return accel.replace(/Super/g, 'Win').replace(/\+/g, ' + ');
+}
+
+function setHint(msg, bad) {
+  hintEl.textContent = msg || '';
+  hintEl.classList.toggle('bad', !!bad);
+}
+
+function statusText(h) {
+  if (h.status === 'ok') return ['Active', 'ok'];
+  if (h.status === 'taken') return ['Already used by Windows or another app — choose another', 'bad'];
+  if (h.status === 'invalid') return ['Not a valid shortcut — choose another', 'bad'];
+  return ['Off', ''];
+}
+
+function render() {
+  listEl.innerHTML = '';
+  for (const h of hotkeys) {
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    const name = document.createElement('div');
+    name.className = 'row-name';
+    name.textContent = h.label;
+    const status = document.createElement('div');
+    const [text, cls] = statusText(h);
+    status.className = 'row-status ' + cls;
+    status.textContent = text;
+    label.append(name, status);
+
+    const key = document.createElement('button');
+    key.className = 'key';
+    if (recordingId === h.id) {
+      key.classList.add('recording');
+      key.textContent = liveMods ? pretty(liveMods) + ' + …' : 'Press keys…';
+    } else if (h.accelerator) {
+      key.textContent = pretty(h.accelerator);
+      if (h.status === 'taken' || h.status === 'invalid') key.classList.add('bad');
+    } else {
+      key.classList.add('unset');
+      key.textContent = 'Not set';
+    }
+    key.addEventListener('click', () => startRecording(h.id));
+
+    const clear = document.createElement('button');
+    clear.className = 'clear';
+    clear.title = 'Turn off';
+    clear.textContent = '✕';
+    clear.disabled = !h.accelerator;
+    clear.addEventListener('click', () => apply({ [h.id]: null }));
+
+    row.append(label, key, clear);
+    listEl.appendChild(row);
+  }
+}
+
+async function startRecording(id) {
+  if (recordingId === id) return;
+  recordingId = id;
+  liveMods = '';
+  setHint('Press the new combination for ' + hotkeys.find(h => h.id === id).label + '. Esc cancels.');
+  render();
+  // Released while recording so pressing an existing combination reaches this
+  // page instead of snapping a window.
+  await window.api.suspendHotkeys();
+}
+
+async function cancelRecording() {
+  if (!recordingId) return;
+  recordingId = null;
+  liveMods = '';
+  setHint('');
+  hotkeys = await window.api.resumeHotkeys();
+  render();
+}
+
+async function apply(changes) {
+  recordingId = null;
+  liveMods = '';
+  const res = await window.api.setHotkeys(changes);
+  if (res.hotkeys) hotkeys = res.hotkeys;
+  if (res.error) {
+    // A rejected change leaves the old bindings in place but still suspended.
+    if (!res.hotkeys) hotkeys = await window.api.resumeHotkeys();
+    setHint(res.error, true);
+  } else {
+    const failed = hotkeys.filter(h => h.status === 'taken' || h.status === 'invalid').length;
+    setHint(failed ? failed + ' hotkey' + (failed > 1 ? 's' : '') + ' could not be registered.' : 'Saved.', failed > 0);
+  }
+  render();
+}
+
+window.addEventListener('keydown', e => {
+  if (!recordingId) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const mods = modifiersOf(e);
+  if (e.key === 'Escape' && !mods.length) { cancelRecording(); return; }
+
+  if (MODIFIER_KEYS.includes(e.key)) {
+    liveMods = mods.join('+');
+    render();
+    return;
+  }
+
+  const key = keyFromCode(e.code) || keyFromKeyCode(e.keyCode);
+  if (!key) { setHint("That key can't be used in a shortcut.", true); return; }
+  if (!mods.some(m => m === 'Ctrl' || m === 'Alt' || m === 'Super')) {
+    setHint('Include Ctrl, Alt or Win so the shortcut doesn\'t block normal typing.', true);
+    return;
+  }
+
+  const accel = [...mods, key].join('+');
+  const clash = hotkeys.find(h => h.id !== recordingId && h.accelerator && h.accelerator.toLowerCase() === accel.toLowerCase());
+  if (clash) { setHint(pretty(accel) + ' is already assigned to ' + clash.label + '.', true); return; }
+
+  apply({ [recordingId]: accel });
+}, true);
+
+window.addEventListener('keyup', e => {
+  if (!recordingId || !MODIFIER_KEYS.includes(e.key)) return;
+  liveMods = modifiersOf(e).join('+');
+  render();
+}, true);
+
+// Switching away mid-recording would otherwise leave every hotkey suspended.
+window.addEventListener('blur', () => { cancelRecording(); });
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  apply(Object.fromEntries(hotkeys.map(h => [h.id, h.defaultAccelerator])));
+});
+
+async function init() {
+  try {
+    hotkeys = await window.api.getHotkeys();
+  } catch(e) {
+    console.error('getHotkeys failed:', e);
+    setHint('Could not load hotkeys.', true);
+  }
+  const failed = hotkeys.filter(h => h.status === 'taken' || h.status === 'invalid').length;
+  if (failed) setHint(failed + ' hotkey' + (failed > 1 ? 's are' : ' is') + ' unavailable — click to choose different keys.', true);
+  render();
+}
+init();
+</script>
+</body>
+</html>

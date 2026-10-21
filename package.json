@@ -29,6 +29,7 @@
       "preload.js",
       "editor.html",
       "assist.html",
+      "hotkeys.html",
       "assets/**/*",
       "package.json"
     ],
