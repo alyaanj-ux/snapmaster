@@ -274,9 +274,12 @@ ipcMain.handle('snap-window', (e, zone, displayIndex) =>
   snapZone(zone, displayByIndex(displayIndex), '[WinSnap]::GetForegroundWindow()')
 );
 
-ipcMain.handle('snap-window-by-hwnd', (e, hwnd, zone, displayIndex) =>
-  snapZone(zone, displayByIndex(displayIndex), '[IntPtr]' + hwnd)
-);
+ipcMain.handle('snap-window-by-hwnd', (e, hwnd, zone, displayIndex) => {
+  if (typeof hwnd !== 'string' || !/^\d+$/.test(hwnd)) {
+    return { error: 'Invalid window handle.' };
+  }
+  return snapZone(zone, displayByIndex(displayIndex), '[IntPtr]' + hwnd);
+});
 
 ipcMain.handle('get-windows', () => {
   return runPS([
